@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Google Maps with Search in Task Pane</title>
+    <title>Google Maps in Task Pane</title>
     <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places"></script>
     <style>
@@ -12,52 +12,69 @@
             height: 100%;
             width: 100%;
         }
-        #search-bar {
-            position: absolute;
-            top: 10px;
-            left: 300px;
-            z-index: 5;
-            width: 300px;
-        }
         html, body {
             height: 100%;
             margin: 0;
             padding: 0;
         }
+        #search-bar {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            z-index: 5;
+            display: flex;
+        }
+        #search-input {
+            flex: 1;
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 4px 0 0 4px;
+        }
+        #search-button {
+            padding: 8px 12px;
+            font-size: 14px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 0 4px 4px 0;
+        }
     </style>
 </head>
 <body>
-    <input id="search-bar" type="text" placeholder="Search for location or coordinates">
+    <div id="search-bar">
+        <input id="search-input" type="text" placeholder="Search location or coordinates">
+        <button id="search-button">Search</button>
+    </div>
     <div id="map"></div>
 
     <script>
+        let map;
+
         function initMap() {
+            // Center on Muscat
             const muscat = { lat: 23.5859, lng: 58.4059 };
-            const map = new google.maps.Map(document.getElementById("map"), {
+            map = new google.maps.Map(document.getElementById("map"), {
                 zoom: 13,
                 center: muscat,
-                mapTypeId: google.maps.MapTypeId.SATELLITE, // Default satellite view
+                mapTypeId: google.maps.MapTypeId.SATELLITE,
             });
 
-            let marker = null;
-
-            // Handle double-click to place a marker and update Excel cells
+            // Add double-click listener to place a marker and update coordinates in Excel
             map.addListener("dblclick", (event) => {
                 const lat = event.latLng.lat();
                 const lng = event.latLng.lng();
 
-                // Remove previous marker if it exists
-                if (marker) marker.setMap(null);
-
-                // Place a new marker
-                marker = new google.maps.Marker({
+                // Place a marker
+                new google.maps.Marker({
                     position: event.latLng,
                     map: map,
-                    title: "Selected Location",
-                    icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
                 });
 
-                // Set coordinates in Excel
+                // Call Office.js to set the values in Excel
                 Office.onReady(() => {
                     Excel.run((context) => {
                         const sheet = context.workbook.worksheets.getActiveWorksheet();
@@ -67,89 +84,28 @@
                     }).catch((error) => console.error(error));
                 });
             });
-
-            // Add search functionality
-            const input = document.getElementById("search-bar");
-            const searchBox = new google.maps.places.SearchBox(input);
-
-            // Bias the SearchBox results towards map's viewport
-            map.addListener("bounds_changed", () => {
-                searchBox.setBounds(map.getBounds());
-            });
-
-            searchBox.addListener("places_changed", () => {
-                const places = searchBox.getPlaces();
-
-                if (places.length === 0) return;
-
-                // Get the first place result
-                const place = places[0];
-
-                // Set marker position to the searched place
-                if (marker) marker.setMap(null); // Remove previous marker if exists
-
-                marker = new google.maps.Marker({
-                    position: place.geometry.location,
-                    map: map,
-                    title: place.name,
-                    icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-                });
-
-                // Center the map at the place location
-                map.setCenter(place.geometry.location);
-                map.setZoom(15); // Adjust zoom level if necessary
-
-                // Update Excel with the place coordinates
-                Office.onReady(() => {
-                    Excel.run((context) => {
-                        const sheet = context.workbook.worksheets.getActiveWorksheet();
-                        sheet.getRange("B1").values = [[place.geometry.location.lat()]];
-                        sheet.getRange("B2").values = [[place.geometry.location.lng()]];
-                        return context.sync();
-                    }).catch((error) => console.error(error));
-                });
-            });
-
-            // Coordinate search (parse user input as lat,lng)
-            input.addEventListener("keydown", (event) => {
-                if (event.key === "Enter") {
-                    const inputText = input.value.trim();
-                    const coordinateRegex = /^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$/;
-                    const match = inputText.match(coordinateRegex);
-
-                    if (match) {
-                        const lat = parseFloat(match[1]);
-                        const lng = parseFloat(match[3]);
-                        const latLng = { lat, lng };
-
-                        // Remove previous marker if it exists
-                        if (marker) marker.setMap(null);
-
-                        // Place marker at the searched coordinates
-                        marker = new google.maps.Marker({
-                            position: latLng,
-                            map: map,
-                            title: "Custom Coordinates",
-                            icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-                        });
-
-                        // Center the map at the coordinates
-                        map.setCenter(latLng);
-                        map.setZoom(15);
-
-                        // Update Excel with the coordinates
-                        Office.onReady(() => {
-                            Excel.run((context) => {
-                                const sheet = context.workbook.worksheets.getActiveWorksheet();
-                                sheet.getRange("B1").values = [[lat]];
-                                sheet.getRange("B2").values = [[lng]];
-                                return context.sync();
-                            }).catch((error) => console.error(error));
-                        });
-                    }
-                }
-            });
         }
+
+        // Function to search for a location or coordinates
+        document.getElementById("search-button").addEventListener("click", () => {
+            const searchInput = document.getElementById("search-input").value.trim();
+
+            if (searchInput) {
+                // Use Google Places API to find the location
+                const geocoder = new google.maps.Geocoder();
+                geocoder.geocode({ address: searchInput }, (results, status) => {
+                    if (status === "OK" && results[0]) {
+                        map.setCenter(results[0].geometry.location);
+                        new google.maps.Marker({
+                            position: results[0].geometry.location,
+                            map: map,
+                        });
+                    } else {
+                        alert("Location not found. Try coordinates or a different search.");
+                    }
+                });
+            }
+        });
 
         // Load the map after Office.js and the page are ready
         Office.onReady(initMap);
