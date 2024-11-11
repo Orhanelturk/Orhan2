@@ -49,4 +49,17 @@
                     title: "Selected Location",
                 });
 
-                // Call Office.js to set the
+                // Call Office.js to set the values in Excel
+                Office.onReady(() => {
+                    Excel.run((context) => {
+                        const sheet = context.workbook.worksheets.getActiveWorksheet();
+                        sheet.getRange("B1").values = [[lat]];
+                        sheet.getRange("B2").values = [[lng]];
+                        return context.sync();
+                    }).catch((error) => console.error(error));
+                });
+            });
+        }
+
+        // Load the map after Office.js and the page are ready
+        Office.onReady(initMap);
