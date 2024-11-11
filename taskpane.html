@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Google Maps in Task Pane</title>
+    <title>Google Maps with Polygon Drawing and Search</title>
     <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places,drawing"></script>
     <style>
         #map {
             height: 100%;
@@ -17,101 +17,165 @@
             margin: 0;
             padding: 0;
         }
+        #toolbar {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            background-color: #f0f0f0;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            z-index: 5;
+        }
+        .button {
+            padding: 10px;
+            margin: 5px 0;
+            cursor: pointer;
+            border: none;
+            background: none;
+            background-size: 24px;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        .pen-button {
+            background-image: url('https://img.icons8.com/fluency/48/000000/edit.png');
+        }
+        .clear-button {
+            background-image: url('https://img.icons8.com/fluency/48/000000/eraser.png');
+        }
         #search-bar {
             position: absolute;
             top: 10px;
             left: 50%;
             transform: translateX(-50%);
-            width: 300px;
+            width: 250%;
             z-index: 5;
-            display: flex;
         }
         #search-input {
-            flex: 1;
+            width: 20%;
             padding: 8px;
             font-size: 14px;
+            border-radius: 4px;
             border: 1px solid #ccc;
-            border-radius: 4px 0 0 4px;
-        }
-        #search-button {
-            padding: 8px 12px;
-            font-size: 14px;
-            background-color: #4285f4;
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 0 4px 4px 0;
         }
     </style>
 </head>
 <body>
     <div id="search-bar">
-        <input id="search-input" type="text" placeholder="Search location or coordinates">
-        <button id="search-button">Search</button>
+        <input id="search-input" type="text" placeholder="Search location or coordinates" />
+    </div>
+    <div id="toolbar">
+        <button id="pen-button" class="button pen-button" title="Draw Polygon"></button>
+        <button id="clear-button" class="button clear-button" title="Clear Polygon"></button>
     </div>
     <div id="map"></div>
 
     <script>
         let map;
-        let currentMarker;  // Store the current marker to remove it when a new one is added
+        let drawingManager;
+        let polygon;
+        let isDrawing = false;
+        let marker = null;
 
         function initMap() {
-            // Center on Muscat
-            const muscat = { lat: 23.5859, lng: 58.4059 };
+            const centerLocation = { lat: 23.5859, lng: 58.4059 };
             map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 13,
-                center: muscat,
+                zoom: 18,
+                center: centerLocation,
                 mapTypeId: google.maps.MapTypeId.SATELLITE,
             });
 
-            // Add double-click listener to place a marker and update coordinates in Excel
-            map.addListener("dblclick", (event) => {
-                placeMarker(event.latLng.lat(), event.latLng.lng());
+            // Initialize Drawing Manager for polygons
+            drawingManager = new google.maps.drawing.DrawingManager({
+                drawingControl: false,
+                drawingMode: null,
+                polygonOptions: {
+                    fillColor: '#FF0000',
+                    fillOpacity: 0.4,
+                    strokeColor: '#FF0000',
+                    strokeWeight: 2,
+                    clickable: false,
+                    editable: true,
+                    draggable: false,
+                }
             });
-        }
+            drawingManager.setMap(map);
 
-        // Function to place a marker and set coordinates in Excel
-        function placeMarker(lat, lng) {
-            // Remove the previous marker if it exists
-            if (currentMarker) {
-                currentMarker.setMap(null);
-            }
+            // Add listeners for Pen and Clear buttons
+            document.getElementById("pen-button").addEventListener("click", toggleDrawing);
+            document.getElementById("clear-button").addEventListener("click", clearPolygon);
 
-            // Place a new marker at the specified location
-            currentMarker = new google.maps.Marker({
-                position: { lat, lng },
-                map: map,
+            // Capture the completed polygon
+            google.maps.event.addListener(drawingManager, 'polygoncomplete', (poly) => {
+                polygon = poly;
+                drawingManager.setDrawingMode(null);
+                isDrawing = false;
             });
 
-            // Call Office.js to set the values in Excel
-            Office.onReady(() => {
-                Excel.run((context) => {
-                    const sheet = context.workbook.worksheets.getActiveWorksheet();
-                    sheet.getRange("B1").values = [[lat]];
-                    sheet.getRange("B2").values = [[lng]];
-                    return context.sync();
-                }).catch((error) => console.error(error));
+            // Add search functionality
+            const input = document.getElementById("search-input");
+            const searchBox = new google.maps.places.SearchBox(input);
+            map.controls[google.maps.ControlPosition.TOP_CENTER].push(input);
+
+            searchBox.addListener("places_changed", () => {
+                const places = searchBox.getPlaces();
+                if (places.length === 0) return;
+
+                if (marker) marker.setMap(null);
+
+                const place = places[0];
+                if (place.geometry) {
+                    map.panTo(place.geometry.location);
+                    map.setZoom(18);
+                    marker = new google.maps.Marker({
+                        map,
+                        position: place.geometry.location
+                    });
+                }
             });
-        }
 
-        // Function to search for a location or coordinates
-        document.getElementById("search-button").addEventListener("click", () => {
-            const searchInput = document.getElementById("search-input").value.trim();
+            // Handle coordinate search
+            input.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    const value = input.value;
+                    const [lat, lng] = value.split(",").map(Number);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        const location = { lat, lng };
+                        if (marker) marker.setMap(null);
 
-            if (searchInput) {
-                // Use Google Places API to find the location
-                const geocoder = new google.maps.Geocoder();
-                geocoder.geocode({ address: searchInput }, (results, status) => {
-                    if (status === "OK" && results[0]) {
-                        const location = results[0].geometry.location;
-                        map.setCenter(location);
-                        placeMarker(location.lat(), location.lng());
-                    } else {
-                        alert("Location not found. Try coordinates or a different search.");
+                        map.panTo(location);
+                        map.setZoom(18);
+                        marker = new google.maps.Marker({
+                            map,
+                            position: location
+                        });
                     }
-                });
+                }
+            });
+        }
+
+        // Toggle drawing mode
+        function toggleDrawing() {
+            if (isDrawing) {
+                drawingManager.setDrawingMode(null);
+            } else {
+                drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
             }
-        });
+            isDrawing = !isDrawing;
+        }
+
+        // Clear the drawn polygon
+        function clearPolygon() {
+            if (polygon) {
+                polygon.setMap(null);
+                polygon = null;
+            }
+            drawingManager.setDrawingMode(null);
+            isDrawing = false;
+        }
 
         // Load the map after Office.js and the page are ready
         Office.onReady(initMap);
