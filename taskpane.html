@@ -32,6 +32,7 @@
             const map = new google.maps.Map(document.getElementById("map"), {
                 zoom: 13,
                 center: muscat,
+                disableDoubleClickZoom: true  // Disable zoom on double-click
             });
 
             // Add dblclick listener to place marker and retrieve coordinates
