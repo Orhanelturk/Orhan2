@@ -4,13 +4,20 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Google Maps in Task Pane</title>
+    <title>Google Maps with Search in Task Pane</title>
     <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places"></script>
     <style>
         #map {
             height: 100%;
             width: 100%;
+        }
+        #search-bar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 5;
+            width: 300px;
         }
         html, body {
             height: 100%;
@@ -20,40 +27,37 @@
     </style>
 </head>
 <body>
+    <input id="search-bar" type="text" placeholder="Search for location or coordinates">
     <div id="map"></div>
 
     <script>
-        // Initialize and add the map
         function initMap() {
-            // Center on Muscat
             const muscat = { lat: 23.5859, lng: 58.4059 };
             const map = new google.maps.Map(document.getElementById("map"), {
                 zoom: 13,
                 center: muscat,
-                mapTypeId: google.maps.MapTypeId.SATELLITE, // Default view is satellite
+                mapTypeId: google.maps.MapTypeId.SATELLITE, // Default satellite view
             });
 
-            let marker = null; // To store the marker
+            let marker = null;
 
-            // Add a double-click listener to place a marker
+            // Handle double-click to place a marker and update Excel cells
             map.addListener("dblclick", (event) => {
                 const lat = event.latLng.lat();
                 const lng = event.latLng.lng();
 
                 // Remove previous marker if it exists
-                if (marker) {
-                    marker.setMap(null);
-                }
+                if (marker) marker.setMap(null);
 
-                // Create a new marker at the double-click position
+                // Place a new marker
                 marker = new google.maps.Marker({
                     position: event.latLng,
                     map: map,
                     title: "Selected Location",
-                    icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png", // Custom marker icon
+                    icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
                 });
 
-                // Call Office.js to set the values in Excel
+                // Set coordinates in Excel
                 Office.onReady(() => {
                     Excel.run((context) => {
                         const sheet = context.workbook.worksheets.getActiveWorksheet();
@@ -62,6 +66,88 @@
                         return context.sync();
                     }).catch((error) => console.error(error));
                 });
+            });
+
+            // Add search functionality
+            const input = document.getElementById("search-bar");
+            const searchBox = new google.maps.places.SearchBox(input);
+
+            // Bias the SearchBox results towards map's viewport
+            map.addListener("bounds_changed", () => {
+                searchBox.setBounds(map.getBounds());
+            });
+
+            searchBox.addListener("places_changed", () => {
+                const places = searchBox.getPlaces();
+
+                if (places.length === 0) return;
+
+                // Get the first place result
+                const place = places[0];
+
+                // Set marker position to the searched place
+                if (marker) marker.setMap(null); // Remove previous marker if exists
+
+                marker = new google.maps.Marker({
+                    position: place.geometry.location,
+                    map: map,
+                    title: place.name,
+                    icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                });
+
+                // Center the map at the place location
+                map.setCenter(place.geometry.location);
+                map.setZoom(15); // Adjust zoom level if necessary
+
+                // Update Excel with the place coordinates
+                Office.onReady(() => {
+                    Excel.run((context) => {
+                        const sheet = context.workbook.worksheets.getActiveWorksheet();
+                        sheet.getRange("B1").values = [[place.geometry.location.lat()]];
+                        sheet.getRange("B2").values = [[place.geometry.location.lng()]];
+                        return context.sync();
+                    }).catch((error) => console.error(error));
+                });
+            });
+
+            // Coordinate search (parse user input as lat,lng)
+            input.addEventListener("keydown", (event) => {
+                if (event.key === "Enter") {
+                    const inputText = input.value.trim();
+                    const coordinateRegex = /^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$/;
+                    const match = inputText.match(coordinateRegex);
+
+                    if (match) {
+                        const lat = parseFloat(match[1]);
+                        const lng = parseFloat(match[3]);
+                        const latLng = { lat, lng };
+
+                        // Remove previous marker if it exists
+                        if (marker) marker.setMap(null);
+
+                        // Place marker at the searched coordinates
+                        marker = new google.maps.Marker({
+                            position: latLng,
+                            map: map,
+                            title: "Custom Coordinates",
+                            icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                        });
+
+                        // Center the map at the coordinates
+                        map.setCenter(latLng);
+                        map.setZoom(15);
+
+                        // Update Excel with the coordinates
+                        Office.onReady(() => {
+                            Excel.run((context) => {
+                                const sheet = context.workbook.worksheets.getActiveWorksheet();
+                                sheet.getRange("B1").values = [[lat]];
+                                sheet.getRange("B2").values = [[lng]];
+                                return context.sync();
+                            }).catch((error) => console.error(error));
+                        });
+                    }
+                }
             });
         }
 
