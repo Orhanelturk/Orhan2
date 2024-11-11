@@ -23,18 +23,34 @@
     <div id="map"></div>
 
     <script>
+        // Initialize and add the map
         function initMap() {
+            // Center on Muscat
             const muscat = { lat: 23.5859, lng: 58.4059 };
             const map = new google.maps.Map(document.getElementById("map"), {
                 zoom: 13,
                 center: muscat,
             });
+
+            // Add click listener to retrieve coordinates
+            map.addListener("click", (event) => {
+                const lat = event.latLng.lat();
+                const lng = event.latLng.lng();
+
+                // Call Office.js to set the values in Excel
+                Office.onReady(() => {
+                    Excel.run((context) => {
+                        const sheet = context.workbook.worksheets.getActiveWorksheet();
+                        sheet.getRange("B1").values = [[lat]];
+                        sheet.getRange("B2").values = [[lng]];
+                        return context.sync();
+                    }).catch((error) => console.error(error));
+                });
+            });
         }
 
-        // Make sure Office.js is loaded first
-        Office.onReady(() => {
-            initMap();
-        });
+        // Load the map after Office.js and the page are ready
+        Office.onReady(initMap);
     </script>
 </body>
 </html>
