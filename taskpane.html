@@ -23,6 +23,8 @@
     <div id="map"></div>
 
     <script>
+        let marker = null;  // To keep track of the marker
+
         // Initialize and add the map
         function initMap() {
             // Center on Muscat
@@ -32,25 +34,19 @@
                 center: muscat,
             });
 
-            // Add click listener to retrieve coordinates
-            map.addListener("click", (event) => {
+            // Add dblclick listener to add a marker and retrieve coordinates
+            map.addListener("dblclick", (event) => {
                 const lat = event.latLng.lat();
                 const lng = event.latLng.lng();
 
-                // Call Office.js to set the values in Excel
-                Office.onReady(() => {
-                    Excel.run((context) => {
-                        const sheet = context.workbook.worksheets.getActiveWorksheet();
-                        sheet.getRange("B1").values = [[lat]];
-                        sheet.getRange("B2").values = [[lng]];
-                        return context.sync();
-                    }).catch((error) => console.error(error));
+                // Add marker on double-click
+                if (marker) {
+                    marker.setMap(null);  // Remove the existing marker (if any)
+                }
+                marker = new google.maps.Marker({
+                    position: { lat, lng },
+                    map: map,
+                    title: "Selected Location",
                 });
-            });
-        }
 
-        // Load the map after Office.js and the page are ready
-        Office.onReady(initMap);
-    </script>
-</body>
-</html>
+                // Call Office.js to set the
