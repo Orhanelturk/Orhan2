@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Google Maps in Task Pane</title>
     <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394"></script>
     <style>
         #map {
             height: 100%;
@@ -17,70 +17,41 @@
             margin: 0;
             padding: 0;
         }
-        #search-box {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 5;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            width: 300px;
-        }
     </style>
 </head>
 <body>
-    <!-- Search bar input -->
-    <input id="search-box" type="text" placeholder="Search for a location or coordinates (lat, lng)" />
-
     <div id="map"></div>
 
     <script>
-        let marker = null;  // To track the marker
-
         // Initialize and add the map
         function initMap() {
-            // Center on Muscat by default
+            // Center on Muscat
             const muscat = { lat: 23.5859, lng: 58.4059 };
             const map = new google.maps.Map(document.getElementById("map"), {
                 zoom: 13,
                 center: muscat,
-                mapTypeId: google.maps.MapTypeId.SATELLITE,  // Set default view to satellite
-                disableDoubleClickZoom: true  // Disable zoom on double-click
+                mapTypeId: google.maps.MapTypeId.SATELLITE, // Default view is satellite
             });
 
-            // Create an autocomplete object for the search box
-            const input = document.getElementById("search-box");
-            const autocomplete = new google.maps.places.Autocomplete(input);
-            autocomplete.setFields(["place_id", "geometry", "name"]);
+            let marker = null; // To store the marker
 
-            // Handle the place changed event (when a user selects a place)
-            autocomplete.addListener("place_changed", () => {
-                const place = autocomplete.getPlace();
+            // Add a double-click listener to place a marker
+            map.addListener("dblclick", (event) => {
+                const lat = event.latLng.lat();
+                const lng = event.latLng.lng();
 
-                if (!place.geometry) {
-                    return;  // If no geometry, exit (not a valid place)
-                }
-
-                // If a marker exists, remove it
+                // Remove previous marker if it exists
                 if (marker) {
                     marker.setMap(null);
                 }
 
-                // Set the map's center to the selected place
-                map.setCenter(place.geometry.location);
-
-                // Place a marker at the selected location
+                // Create a new marker at the double-click position
                 marker = new google.maps.Marker({
-                    position: place.geometry.location,
+                    position: event.latLng,
                     map: map,
-                    title: place.name
+                    title: "Selected Location",
+                    icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png", // Custom marker icon
                 });
-
-                // Get latitude and longitude and send it to Excel
-                const lat = place.geometry.location.lat();
-                const lng = place.geometry.location.lng();
 
                 // Call Office.js to set the values in Excel
                 Office.onReady(() => {
@@ -92,52 +63,10 @@
                     }).catch((error) => console.error(error));
                 });
             });
-
-            // Listen for manual coordinates input (lat, lng)
-            input.addEventListener("change", function() {
-                const searchText = input.value.trim();
-
-                // Check if input is in latitude, longitude format (e.g., "23.5859, 58.4059")
-                const coordinatesPattern = /^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$/;
-                const match = searchText.match(coordinatesPattern);
-
-                if (match) {
-                    const lat = parseFloat(match[1]);
-                    const lng = parseFloat(match[3]);
-
-                    // If a marker exists, remove it
-                    if (marker) {
-                        marker.setMap(null);
-                    }
-
-                    // Set the map's center to the entered coordinates
-                    const location = { lat: lat, lng: lng };
-                    map.setCenter(location);
-
-                    // Place a marker at the entered coordinates
-                    marker = new google.maps.Marker({
-                        position: location,
-                        map: map,
-                        title: "Custom Location"
-                    });
-
-                    // Call Office.js to set the values in Excel
-                    Office.onReady(() => {
-                        Excel.run((context) => {
-                            const sheet = context.workbook.worksheets.getActiveWorksheet();
-                            sheet.getRange("B1").values = [[lat]];
-                            sheet.getRange("B2").values = [[lng]];
-                            return context.sync();
-                        }).catch((error) => console.error(error));
-                    });
-                }
-            });
         }
 
         // Load the map after Office.js and the page are ready
-        Office.onReady(() => {
-            initMap();
-        });
+        Office.onReady(initMap);
     </script>
 </body>
 </html>
