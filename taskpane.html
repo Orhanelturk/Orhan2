@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Google Maps in Task Pane</title>
     <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places"></script>
     <style>
         #map {
             height: 100%;
@@ -17,9 +17,23 @@
             margin: 0;
             padding: 0;
         }
+        #search-box {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 5;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            width: 300px;
+        }
     </style>
 </head>
 <body>
+    <!-- Search bar input -->
+    <input id="search-box" type="text" placeholder="Search for a location" />
+
     <div id="map"></div>
 
     <script>
@@ -36,22 +50,37 @@
                 disableDoubleClickZoom: true  // Disable zoom on double-click
             });
 
-            // Add dblclick listener to place marker and retrieve coordinates
-            map.addListener("dblclick", (event) => {
-                const lat = event.latLng.lat();
-                const lng = event.latLng.lng();
+            // Create an autocomplete object for the search box
+            const input = document.getElementById("search-box");
+            const autocomplete = new google.maps.places.Autocomplete(input);
+            autocomplete.setFields(["place_id", "geometry", "name"]);
+
+            // When a place is selected from the autocomplete list
+            autocomplete.addListener("place_changed", () => {
+                const place = autocomplete.getPlace();
+
+                if (!place.geometry) {
+                    return;  // If no geometry is available, exit
+                }
 
                 // If a marker exists, remove it
                 if (marker) {
                     marker.setMap(null);
                 }
 
-                // Add new marker at the double-click location
+                // Set the map's center to the selected place
+                map.setCenter(place.geometry.location);
+
+                // Place a marker at the selected location
                 marker = new google.maps.Marker({
-                    position: { lat, lng },
+                    position: place.geometry.location,
                     map: map,
-                    title: "Selected Location",
+                    title: place.name
                 });
+
+                // Get latitude and longitude and send it to Excel
+                const lat = place.geometry.location.lat();
+                const lng = place.geometry.location.lng();
 
                 // Call Office.js to set the values in Excel
                 Office.onReady(() => {
