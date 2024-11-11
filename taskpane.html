@@ -53,6 +53,7 @@
 
     <script>
         let map;
+        let currentMarker;  // Store the current marker to remove it when a new one is added
 
         function initMap() {
             // Center on Muscat
@@ -65,24 +66,31 @@
 
             // Add double-click listener to place a marker and update coordinates in Excel
             map.addListener("dblclick", (event) => {
-                const lat = event.latLng.lat();
-                const lng = event.latLng.lng();
+                placeMarker(event.latLng.lat(), event.latLng.lng());
+            });
+        }
 
-                // Place a marker
-                new google.maps.Marker({
-                    position: event.latLng,
-                    map: map,
-                });
+        // Function to place a marker and set coordinates in Excel
+        function placeMarker(lat, lng) {
+            // Remove the previous marker if it exists
+            if (currentMarker) {
+                currentMarker.setMap(null);
+            }
 
-                // Call Office.js to set the values in Excel
-                Office.onReady(() => {
-                    Excel.run((context) => {
-                        const sheet = context.workbook.worksheets.getActiveWorksheet();
-                        sheet.getRange("B1").values = [[lat]];
-                        sheet.getRange("B2").values = [[lng]];
-                        return context.sync();
-                    }).catch((error) => console.error(error));
-                });
+            // Place a new marker at the specified location
+            currentMarker = new google.maps.Marker({
+                position: { lat, lng },
+                map: map,
+            });
+
+            // Call Office.js to set the values in Excel
+            Office.onReady(() => {
+                Excel.run((context) => {
+                    const sheet = context.workbook.worksheets.getActiveWorksheet();
+                    sheet.getRange("B1").values = [[lat]];
+                    sheet.getRange("B2").values = [[lng]];
+                    return context.sync();
+                }).catch((error) => console.error(error));
             });
         }
 
@@ -95,11 +103,9 @@
                 const geocoder = new google.maps.Geocoder();
                 geocoder.geocode({ address: searchInput }, (results, status) => {
                     if (status === "OK" && results[0]) {
-                        map.setCenter(results[0].geometry.location);
-                        new google.maps.Marker({
-                            position: results[0].geometry.location,
-                            map: map,
-                        });
+                        const location = results[0].geometry.location;
+                        map.setCenter(location);
+                        placeMarker(location.lat(), location.lng());
                     } else {
                         alert("Location not found. Try coordinates or a different search.");
                     }
