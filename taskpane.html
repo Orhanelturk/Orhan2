@@ -32,7 +32,7 @@
 </head>
 <body>
     <!-- Search bar input -->
-    <input id="search-box" type="text" placeholder="Search for a location" />
+    <input id="search-box" type="text" placeholder="Search for a location or coordinates (lat, lng)" />
 
     <div id="map"></div>
 
@@ -41,7 +41,7 @@
 
         // Initialize and add the map
         function initMap() {
-            // Center on Muscat
+            // Center on Muscat by default
             const muscat = { lat: 23.5859, lng: 58.4059 };
             const map = new google.maps.Map(document.getElementById("map"), {
                 zoom: 13,
@@ -55,12 +55,12 @@
             const autocomplete = new google.maps.places.Autocomplete(input);
             autocomplete.setFields(["place_id", "geometry", "name"]);
 
-            // When a place is selected from the autocomplete list
+            // Handle the place changed event (when a user selects a place)
             autocomplete.addListener("place_changed", () => {
                 const place = autocomplete.getPlace();
 
                 if (!place.geometry) {
-                    return;  // If no geometry is available, exit
+                    return;  // If no geometry, exit (not a valid place)
                 }
 
                 // If a marker exists, remove it
@@ -91,6 +91,46 @@
                         return context.sync();
                     }).catch((error) => console.error(error));
                 });
+            });
+
+            // Listen for manual coordinates input (lat, lng)
+            input.addEventListener("change", function() {
+                const searchText = input.value.trim();
+
+                // Check if input is in latitude, longitude format (e.g., "23.5859, 58.4059")
+                const coordinatesPattern = /^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$/;
+                const match = searchText.match(coordinatesPattern);
+
+                if (match) {
+                    const lat = parseFloat(match[1]);
+                    const lng = parseFloat(match[3]);
+
+                    // If a marker exists, remove it
+                    if (marker) {
+                        marker.setMap(null);
+                    }
+
+                    // Set the map's center to the entered coordinates
+                    const location = { lat: lat, lng: lng };
+                    map.setCenter(location);
+
+                    // Place a marker at the entered coordinates
+                    marker = new google.maps.Marker({
+                        position: location,
+                        map: map,
+                        title: "Custom Location"
+                    });
+
+                    // Call Office.js to set the values in Excel
+                    Office.onReady(() => {
+                        Excel.run((context) => {
+                            const sheet = context.workbook.worksheets.getActiveWorksheet();
+                            sheet.getRange("B1").values = [[lat]];
+                            sheet.getRange("B2").values = [[lng]];
+                            return context.sync();
+                        }).catch((error) => console.error(error));
+                    });
+                }
             });
         }
 
