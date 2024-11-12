@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Google Maps with Polygon Drawing and Search</title>
     <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places,drawing"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places,drawing,geometry"></script>
     <style>
         #map {
             height: 100%;
@@ -46,6 +46,12 @@
         .clear-button {
             background-image: url('https://img.icons8.com/fluency/48/000000/eraser.png');
         }
+        .fill-button {
+            background-image: url('https://img.icons8.com/fluency/48/000000/plus.png');
+        }
+        .clear-rectangles-button {
+            background-image: url('https://img.icons8.com/fluency/48/000000/delete-forever.png');
+        }
         #search-bar {
             position: absolute;
             top: 10px;
@@ -70,6 +76,8 @@
     <div id="toolbar">
         <button id="pen-button" class="button pen-button" title="Draw Polygon"></button>
         <button id="clear-button" class="button clear-button" title="Clear Polygon"></button>
+        <button id="fill-button" class="button fill-button" title="Fill with Rectangles"></button>
+        <button id="clear-rectangles-button" class="button clear-rectangles-button" title="Clear Rectangles"></button>
     </div>
     <div id="map"></div>
 
@@ -77,9 +85,10 @@
         let map;
         let drawingManager;
         let polygon;
-        let isDrawing = false;
         let marker = null;
+        let rectangles = []; // To store the rectangles drawn inside the polygon
 
+        // Function to initialize the map
         function initMap() {
             const centerLocation = { lat: 23.5859, lng: 58.4059 };
             map = new google.maps.Map(document.getElementById("map"), {
@@ -104,15 +113,16 @@
             });
             drawingManager.setMap(map);
 
-            // Add listeners for Pen and Clear buttons
+            // Add listeners for Pen, Clear, Fill, and Clear Rectangles buttons
             document.getElementById("pen-button").addEventListener("click", toggleDrawing);
             document.getElementById("clear-button").addEventListener("click", clearPolygon);
+            document.getElementById("fill-button").addEventListener("click", fillWithRectangles);
+            document.getElementById("clear-rectangles-button").addEventListener("click", clearRectangles);
 
             // Capture the completed polygon
             google.maps.event.addListener(drawingManager, 'polygoncomplete', (poly) => {
                 polygon = poly;
                 drawingManager.setDrawingMode(null);
-                isDrawing = false;
             });
 
             // Add search functionality
@@ -121,7 +131,10 @@
 
             searchBox.addListener("places_changed", () => {
                 const places = searchBox.getPlaces();
-                if (places.length === 0) return;
+                if (places.length === 0) {
+                    alert("No places found. Please try again.");
+                    return;
+                }
 
                 if (marker) marker.setMap(null);
 
@@ -160,7 +173,6 @@
                 const lat = event.latLng.lat();
                 const lng = event.latLng.lng();
 
-                // Place marker and update coordinates in Excel
                 if (marker) marker.setMap(null); // Remove previous marker
 
                 marker = new google.maps.Marker({
@@ -183,12 +195,11 @@
 
         // Toggle drawing mode
         function toggleDrawing() {
-            if (isDrawing) {
-                drawingManager.setDrawingMode(null);
+            if (drawingManager.drawingMode) {
+                drawingManager.setDrawingMode(null);  // Stop drawing
             } else {
-                drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+                drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);  // Start drawing
             }
-            isDrawing = !isDrawing;
         }
 
         // Clear the drawn polygon
@@ -198,10 +209,73 @@
                 polygon = null;
             }
             drawingManager.setDrawingMode(null);
-            isDrawing = false;
+            clearRectangles(); // Also clear rectangles when the polygon is cleared
         }
 
-        // Load the map after Office.js and the page are ready
+        // Fill the polygon with 2.2x1.1 meter rectangles
+        function fillWithRectangles() {
+            if (!polygon) {
+                alert("Please draw a polygon first!");
+                return;
+            }
+
+            // Clear any existing rectangles
+            clearRectangles();
+
+            const path = polygon.getPath();
+            const bounds = new google.maps.LatLngBounds();
+
+            // Extend bounds to include all vertices of the polygon
+            path.forEach((latLng) => bounds.extend(latLng));
+
+            const rectangleWidth = 0.00001982;  // 2.2 meters in latitude degrees
+            const rectangleHeight = 0.00000991; // 1.1 meters in longitude degrees
+            const space = 0.000005;             // Space between rectangles (adjust for more/less space)
+
+            // Iterate over the bounding box and add rectangles only inside the polygon
+            for (let lat = bounds.getSouthWest().lat(); lat < bounds.getNorthEast().lat(); lat += (rectangleHeight + space)) {
+                for (let lng = bounds.getSouthWest().lng(); lng < bounds.getNorthEast().lng(); lng += (rectangleWidth + space)) {
+                    const rectangleLatLng = new google.maps.LatLng(lat, lng);
+
+                    // Define the rectangle corners
+                    const topLeft = new google.maps.LatLng(lat, lng);
+                    const topRight = new google.maps.LatLng(lat, lng + rectangleWidth);
+                    const bottomLeft = new google.maps.LatLng(lat + rectangleHeight, lng);
+                    const bottomRight = new google.maps.LatLng(lat + rectangleHeight, lng + rectangleWidth);
+
+                    // Check if all four corners are inside the polygon
+                    if (google.maps.geometry.poly.containsLocation(topLeft, polygon) &&
+                        google.maps.geometry.poly.containsLocation(topRight, polygon) &&
+                        google.maps.geometry.poly.containsLocation(bottomLeft, polygon) &&
+                        google.maps.geometry.poly.containsLocation(bottomRight, polygon)) {
+                        
+                        const boundsRectangle = new google.maps.LatLngBounds(topLeft, bottomRight);
+
+                        const rect = new google.maps.Rectangle({
+                            map: map,
+                            bounds: boundsRectangle,
+                            fillColor: "#0000FF",
+                            fillOpacity: 0.6,
+                            strokeColor: "#0000FF",
+                            strokeOpacity: 1,
+                            strokeWeight: 1,
+                        });
+
+                        rectangles.push(rect); // Store the rectangle
+                    }
+                }
+            }
+        }
+
+        // Clear all rectangles
+        function clearRectangles() {
+            rectangles.forEach((rect) => {
+                rect.setMap(null);
+            });
+            rectangles = []; // Clear the array
+        }
+
+        // Initialize map after Office.js is ready
         Office.onReady(initMap);
     </script>
 </body>
