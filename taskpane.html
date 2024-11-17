@@ -57,29 +57,49 @@
             top: 10px;
             left: 50%;
             transform: translateX(-50%);
-            width: 250px;
+            width: 300px;
             z-index: 5;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
         }
-        #search-input {
-            width: 100%;
+        #search-bar input {
+            width: 48%;
+            margin: 5px 0;
             padding: 8px;
             font-size: 14px;
             border-radius: 4px;
             border: 1px solid #ccc;
         }
-        
+        #info-bar {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 14px;
+            z-index: 5;
+        }
     </style>
 </head>
 <body>
     <div id="search-bar">
-        <input id="search-input" type="text" placeholder="Search location or coordinates" />
-        <input id="angle-input" type="number" placeholder="Angle (degrees)" style="margin: 5px 0; padding: 8px; font-size: 14px; border-radius: 4px; border: 1px solid #ccc;"title="Specify the angle of alignment">
+        <input id="search-input" type="text" placeholder="Search location or coordinates">
+        <input id="angle-input" type="number" placeholder="Angle (degrees)" value="0" title="Specify the angle of alignment">
+        <input id="row-space-input" type="number" placeholder="Row Space (meters)" value="1" title="Row spacing">
+        <input id="column-space-input" type="number" placeholder="Column Space (meters)" value="0.02" title="Column spacing">
     </div>
     <div id="toolbar">
         <button id="pen-button" class="button pen-button" title="Draw Polygon"></button>
         <button id="clear-button" class="button clear-button" title="Clear Polygon"></button>
         <button id="fill-button" class="button fill-button" title="Fill with Rectangles"></button>
         <button id="clear-rectangles-button" class="button clear-rectangles-button" title="Clear Rectangles"></button>
+    </div>
+    <div id="info-bar">
+        <p id="panel-count">Number of Panels: 0</p>
+        <p id="kwp-value">Total kWp: 0.00</p>
     </div>
     <div id="map"></div>
 
@@ -90,7 +110,6 @@
         let marker = null;
         let rectangles = []; // To store the rectangles drawn inside the polygon
 
-        // Function to initialize the map
         function initMap() {
             const centerLocation = { lat: 23.5859, lng: 58.4059 };
             map = new google.maps.Map(document.getElementById("map"), {
@@ -99,10 +118,8 @@
                 mapTypeId: google.maps.MapTypeId.SATELLITE,
             });
 
-            // Initialize Drawing Manager for polygons
             drawingManager = new google.maps.drawing.DrawingManager({
                 drawingControl: false,
-                drawingMode: null,
                 polygonOptions: {
                     fillColor: '#FF0000',
                     fillOpacity: 0.4,
@@ -110,232 +127,125 @@
                     strokeWeight: 2,
                     clickable: false,
                     editable: true,
-                    draggable: false,
                 }
             });
             drawingManager.setMap(map);
 
-            // Add listeners for Pen, Clear, Fill, and Clear Rectangles buttons
             document.getElementById("pen-button").addEventListener("click", toggleDrawing);
             document.getElementById("clear-button").addEventListener("click", clearPolygon);
             document.getElementById("fill-button").addEventListener("click", fillWithRectangles);
             document.getElementById("clear-rectangles-button").addEventListener("click", clearRectangles);
 
-            // Capture the completed polygon
             google.maps.event.addListener(drawingManager, 'polygoncomplete', (poly) => {
                 polygon = poly;
                 drawingManager.setDrawingMode(null);
             });
-
-            // Add search functionality
-            const input = document.getElementById("search-input");
-            const searchBox = new google.maps.places.SearchBox(input);
-
-            searchBox.addListener("places_changed", () => {
-                const places = searchBox.getPlaces();
-                if (places.length === 0) {
-                    alert("No places found. Please try again.");
-                    return;
-                }
-
-                if (marker) marker.setMap(null);
-
-                const place = places[0];
-                if (place.geometry) {
-                    map.panTo(place.geometry.location);
-                    map.setZoom(18);
-                    marker = new google.maps.Marker({
-                        map,
-                        position: place.geometry.location
-                    });
-                }
-            });
-
-            // Handle coordinate search
-            input.addEventListener("keydown", (e) => {
-                if (e.key === "Enter") {
-                    const value = input.value;
-                    const [lat, lng] = value.split(",").map(Number);
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        const location = { lat, lng };
-                        if (marker) marker.setMap(null);
-
-                        map.panTo(location);
-                        map.setZoom(18);
-                        marker = new google.maps.Marker({
-                            map,
-                            position: location
-                        });
-                    }
-                }
-            });
-
-            // Add double-click event listener to retrieve coordinates
-            map.addListener('dblclick', (event) => {
-                const lat = event.latLng.lat();
-                const lng = event.latLng.lng();
-
-                if (marker) marker.setMap(null); // Remove previous marker
-
-                marker = new google.maps.Marker({
-                    position: event.latLng,
-                    map: map,
-                    title: `Latitude: ${lat}, Longitude: ${lng}`,
-                });
-
-                // Call Office.js to set the values in Excel
-                Office.onReady(() => {
-                    Excel.run((context) => {
-                        const sheet = context.workbook.worksheets.getActiveWorksheet();
-                        sheet.getRange("B1").values = [[lat]];
-                        sheet.getRange("B2").values = [[lng]];
-                        return context.sync();
-                    }).catch((error) => console.error(error));
-                });
-            });
         }
 
-        // Toggle drawing mode
         function toggleDrawing() {
-            if (drawingManager.drawingMode) {
-                drawingManager.setDrawingMode(null);  // Stop drawing
-            } else {
-                drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);  // Start drawing
-            }
+            drawingManager.setDrawingMode(
+                drawingManager.drawingMode ? null : google.maps.drawing.OverlayType.POLYGON
+            );
         }
 
-        // Clear the drawn polygon
         function clearPolygon() {
             if (polygon) {
                 polygon.setMap(null);
                 polygon = null;
             }
-            drawingManager.setDrawingMode(null);
-            clearRectangles(); // Also clear rectangles when the polygon is cleared
+            clearRectangles();
+            updateInfo(0); // Reset panel count and kWp
         }
 
         function fillWithRectangles() {
-    if (!polygon) {
-        alert("Please draw a polygon first!");
-        return;
-    }
-
-    // Get the angle from the input field
-    const angleInput = document.getElementById("angle-input");
-    let angle = parseFloat(angleInput.value);
-
-    if (isNaN(angle)) {
-        alert("Please enter a valid angle!");
-        return;
-    }
-
-    // Convert angle to radians
-    angle = (angle * Math.PI) / 180;
-
-    clearRectangles(); // Clear existing rectangles
-
-    const path = polygon.getPath();
-    const bounds = new google.maps.LatLngBounds();
-
-    // Extend bounds to include all vertices of the polygon
-    path.forEach((latLng) => bounds.extend(latLng));
-
-    const rectangleWidth = 0.00001982;  // 2.2 meters in latitude degrees
-    const rectangleHeight = 0.00000991; // 1.1 meters in longitude degrees
-    const space = 0.000002;             // Reduced space for tighter coverage
-
-    const center = bounds.getCenter();
-    const cosAngle = Math.cos(angle);
-    const sinAngle = Math.sin(angle);
-
-    // Calculate rotated bounds (bounding box aligned to grid at the given angle)
-    const corners = [
-        bounds.getSouthWest(),
-        bounds.getNorthEast(),
-        new google.maps.LatLng(bounds.getSouthWest().lat(), bounds.getNorthEast().lng()),
-        new google.maps.LatLng(bounds.getNorthEast().lat(), bounds.getSouthWest().lng()),
-    ];
-    const rotatedCorners = corners.map((corner) =>
-        rotatePoint(corner, center, cosAngle, sinAngle)
-    );
-
-    const rotatedBounds = new google.maps.LatLngBounds();
-    rotatedCorners.forEach((corner) => rotatedBounds.extend(corner));
-
-    // Function to rotate a point around a center
-    function rotatePoint(point, center, cosAngle, sinAngle) {
-        const latDiff = point.lat() - center.lat();
-        const lngDiff = point.lng() - center.lng();
-        const rotatedLat = center.lat() + (latDiff * cosAngle - lngDiff * sinAngle);
-        const rotatedLng = center.lng() + (latDiff * sinAngle + lngDiff * cosAngle);
-        return new google.maps.LatLng(rotatedLat, rotatedLng);
-    }
-
-    // Iterate over the rotated bounding box
-    for (
-        let lat = rotatedBounds.getSouthWest().lat();
-        lat < rotatedBounds.getNorthEast().lat();
-        lat += rectangleHeight + space
-    ) {
-        for (
-            let lng = rotatedBounds.getSouthWest().lng();
-            lng < rotatedBounds.getNorthEast().lng();
-            lng += rectangleWidth + space
-        ) {
-            const topLeft = new google.maps.LatLng(lat, lng);
-            const topRight = new google.maps.LatLng(lat, lng + rectangleWidth);
-            const bottomLeft = new google.maps.LatLng(lat + rectangleHeight, lng);
-            const bottomRight = new google.maps.LatLng(lat + rectangleHeight, lng + rectangleWidth);
-
-            // Rotate all corners
-            const rotatedTopLeft = rotatePoint(topLeft, center, cosAngle, sinAngle);
-            const rotatedTopRight = rotatePoint(topRight, center, cosAngle, sinAngle);
-            const rotatedBottomLeft = rotatePoint(bottomLeft, center, cosAngle, sinAngle);
-            const rotatedBottomRight = rotatePoint(bottomRight, center, cosAngle, sinAngle);
-
-            // Check if all corners are inside the polygon
-            const allInsidePolygon =
-                google.maps.geometry.poly.containsLocation(rotatedTopLeft, polygon) &&
-                google.maps.geometry.poly.containsLocation(rotatedTopRight, polygon) &&
-                google.maps.geometry.poly.containsLocation(rotatedBottomLeft, polygon) &&
-                google.maps.geometry.poly.containsLocation(rotatedBottomRight, polygon);
-
-            if (allInsidePolygon) {
-                // Create a polygon to represent the rotated rectangle
-                const rectanglePolygon = new google.maps.Polygon({
-                    paths: [
-                        rotatedTopLeft,
-                        rotatedTopRight,
-                        rotatedBottomRight,
-                        rotatedBottomLeft,
-                        rotatedTopLeft, // Close the loop
-                    ],
-                    map: map,
-                    fillColor: "#0000FF",
-                    fillOpacity: 0.6,
-                    strokeColor: "#0000FF",
-                    strokeOpacity: 1,
-                    strokeWeight: 1,
-                });
-
-                rectangles.push(rectanglePolygon); // Store the rectangle
+            if (!polygon) {
+                alert("Please draw a polygon first!");
+                return;
             }
+
+            const angle = parseFloat(document.getElementById("angle-input").value) || 0;
+            const rowSpace = parseFloat(document.getElementById("row-space-input").value) || 1;
+            const columnSpace = parseFloat(document.getElementById("column-space-input").value) || 0.02;
+
+            const path = polygon.getPath();
+            const bounds = new google.maps.LatLngBounds();
+
+            path.forEach((latLng) => bounds.extend(latLng));
+
+            const center = bounds.getCenter();
+            const cosAngle = Math.cos((angle * Math.PI) / 180);
+            const sinAngle = Math.sin((angle * Math.PI) / 180);
+
+            clearRectangles();
+
+            const rectangleWidth = 0.00001982; // Approx 2.2m in lat degrees
+            const rectangleHeight = 0.00000991; // Approx 1.1m in lng degrees
+            const rowSpaceDegrees = rowSpace * 0.00000991;
+            const columnSpaceDegrees = columnSpace * 0.00001982;
+
+            let panelCount = 0;
+
+            for (
+                let lat = bounds.getSouthWest().lat();
+                lat < bounds.getNorthEast().lat();
+                lat += rectangleHeight + rowSpaceDegrees
+            ) {
+                for (
+                    let lng = bounds.getSouthWest().lng();
+                    lng < bounds.getNorthEast().lng();
+                    lng += rectangleWidth + columnSpaceDegrees
+                ) {
+                    const topLeft = new google.maps.LatLng(lat, lng);
+                    const topRight = new google.maps.LatLng(lat, lng + rectangleWidth);
+                    const bottomLeft = new google.maps.LatLng(lat + rectangleHeight, lng);
+                    const bottomRight = new google.maps.LatLng(lat + rectangleHeight, lng + rectangleWidth);
+
+                    const points = [topLeft, topRight, bottomRight, bottomLeft].map(point =>
+                        rotatePoint(point, center, cosAngle, sinAngle)
+                    );
+
+                    if (points.every((point) => google.maps.geometry.poly.containsLocation(point, polygon))) {
+                        const rect = new google.maps.Polygon({
+                            paths: [...points, points[0]],
+                            map: map,
+                            fillColor: "#0000FF",
+                            fillOpacity: 0.6,
+                            strokeColor: "#0000FF",
+                            strokeWeight: 1,
+                        });
+                        rectangles.push(rect);
+                        panelCount++;
+                    }
+                }
+            }
+
+            updateInfo(panelCount);
         }
-    }
-}
 
+        function rotatePoint(point, center, cosAngle, sinAngle) {
+            const latDiff = point.lat() - center.lat();
+            const lngDiff = point.lng() - center.lng();
+            return new google.maps.LatLng(
+                center.lat() + latDiff * cosAngle - lngDiff * sinAngle,
+                center.lng() + latDiff * sinAngle + lngDiff * cosAngle
+            );
+        }
 
-
-
-        // Clear all rectangles
         function clearRectangles() {
-            rectangles.forEach((rect) => {
-                rect.setMap(null);
-            });
-            rectangles = []; // Clear the array
+            rectangles.forEach((rect) => rect.setMap(null));
+            rectangles = [];
+            updateInfo(0); // Reset panel count and kWp
         }
 
-        // Initialize map after Office.js is ready
+        function updateInfo(panelCount) {
+            const panelCountElement = document.getElementById("panel-count");
+            const kwpElement = document.getElementById("kwp-value");
+            const totalKwp = (panelCount * 0.59).toFixed(2);
+
+            panelCountElement.textContent = `Number of Panels: ${panelCount}`;
+            kwpElement.textContent = `Total kWp: ${totalKwp}`;
+        }
+
         Office.onReady(initMap);
     </script>
 </body>
