@@ -67,11 +67,13 @@
             border-radius: 4px;
             border: 1px solid #ccc;
         }
+        
     </style>
 </head>
 <body>
     <div id="search-bar">
         <input id="search-input" type="text" placeholder="Search location or coordinates" />
+        <input id="angle-input" type="number" placeholder="Angle (degrees)" style="margin: 5px 0; padding: 8px; font-size: 14px; border-radius: 4px; border: 1px solid #ccc;"title="Specify the angle of alignment">
     </div>
     <div id="toolbar">
         <button id="pen-button" class="button pen-button" title="Draw Polygon"></button>
@@ -212,60 +214,118 @@
             clearRectangles(); // Also clear rectangles when the polygon is cleared
         }
 
-        // Fill the polygon with 2.2x1.1 meter rectangles
         function fillWithRectangles() {
-            if (!polygon) {
-                alert("Please draw a polygon first!");
-                return;
-            }
+    if (!polygon) {
+        alert("Please draw a polygon first!");
+        return;
+    }
 
-            // Clear any existing rectangles
-            clearRectangles();
+    // Get the angle from the input field
+    const angleInput = document.getElementById("angle-input");
+    let angle = parseFloat(angleInput.value);
 
-            const path = polygon.getPath();
-            const bounds = new google.maps.LatLngBounds();
+    if (isNaN(angle)) {
+        alert("Please enter a valid angle!");
+        return;
+    }
 
-            // Extend bounds to include all vertices of the polygon
-            path.forEach((latLng) => bounds.extend(latLng));
+    // Convert angle to radians
+    angle = (angle * Math.PI) / 180;
 
-            const rectangleWidth = 0.00001982;  // 2.2 meters in latitude degrees
-            const rectangleHeight = 0.00000991; // 1.1 meters in longitude degrees
-            const space = 0.000005;             // Space between rectangles (adjust for more/less space)
+    clearRectangles(); // Clear existing rectangles
 
-            // Iterate over the bounding box and add rectangles only inside the polygon
-            for (let lat = bounds.getSouthWest().lat(); lat < bounds.getNorthEast().lat(); lat += (rectangleHeight + space)) {
-                for (let lng = bounds.getSouthWest().lng(); lng < bounds.getNorthEast().lng(); lng += (rectangleWidth + space)) {
-                    const rectangleLatLng = new google.maps.LatLng(lat, lng);
+    const path = polygon.getPath();
+    const bounds = new google.maps.LatLngBounds();
 
-                    // Define the rectangle corners
-                    const topLeft = new google.maps.LatLng(lat, lng);
-                    const topRight = new google.maps.LatLng(lat, lng + rectangleWidth);
-                    const bottomLeft = new google.maps.LatLng(lat + rectangleHeight, lng);
-                    const bottomRight = new google.maps.LatLng(lat + rectangleHeight, lng + rectangleWidth);
+    // Extend bounds to include all vertices of the polygon
+    path.forEach((latLng) => bounds.extend(latLng));
 
-                    // Check if all four corners are inside the polygon
-                    if (google.maps.geometry.poly.containsLocation(topLeft, polygon) &&
-                        google.maps.geometry.poly.containsLocation(topRight, polygon) &&
-                        google.maps.geometry.poly.containsLocation(bottomLeft, polygon) &&
-                        google.maps.geometry.poly.containsLocation(bottomRight, polygon)) {
-                        
-                        const boundsRectangle = new google.maps.LatLngBounds(topLeft, bottomRight);
+    const rectangleWidth = 0.00001982;  // 2.2 meters in latitude degrees
+    const rectangleHeight = 0.00000991; // 1.1 meters in longitude degrees
+    const space = 0.000002;             // Reduced space for tighter coverage
 
-                        const rect = new google.maps.Rectangle({
-                            map: map,
-                            bounds: boundsRectangle,
-                            fillColor: "#0000FF",
-                            fillOpacity: 0.6,
-                            strokeColor: "#0000FF",
-                            strokeOpacity: 1,
-                            strokeWeight: 1,
-                        });
+    const center = bounds.getCenter();
+    const cosAngle = Math.cos(angle);
+    const sinAngle = Math.sin(angle);
 
-                        rectangles.push(rect); // Store the rectangle
-                    }
-                }
+    // Calculate rotated bounds (bounding box aligned to grid at the given angle)
+    const corners = [
+        bounds.getSouthWest(),
+        bounds.getNorthEast(),
+        new google.maps.LatLng(bounds.getSouthWest().lat(), bounds.getNorthEast().lng()),
+        new google.maps.LatLng(bounds.getNorthEast().lat(), bounds.getSouthWest().lng()),
+    ];
+    const rotatedCorners = corners.map((corner) =>
+        rotatePoint(corner, center, cosAngle, sinAngle)
+    );
+
+    const rotatedBounds = new google.maps.LatLngBounds();
+    rotatedCorners.forEach((corner) => rotatedBounds.extend(corner));
+
+    // Function to rotate a point around a center
+    function rotatePoint(point, center, cosAngle, sinAngle) {
+        const latDiff = point.lat() - center.lat();
+        const lngDiff = point.lng() - center.lng();
+        const rotatedLat = center.lat() + (latDiff * cosAngle - lngDiff * sinAngle);
+        const rotatedLng = center.lng() + (latDiff * sinAngle + lngDiff * cosAngle);
+        return new google.maps.LatLng(rotatedLat, rotatedLng);
+    }
+
+    // Iterate over the rotated bounding box
+    for (
+        let lat = rotatedBounds.getSouthWest().lat();
+        lat < rotatedBounds.getNorthEast().lat();
+        lat += rectangleHeight + space
+    ) {
+        for (
+            let lng = rotatedBounds.getSouthWest().lng();
+            lng < rotatedBounds.getNorthEast().lng();
+            lng += rectangleWidth + space
+        ) {
+            const topLeft = new google.maps.LatLng(lat, lng);
+            const topRight = new google.maps.LatLng(lat, lng + rectangleWidth);
+            const bottomLeft = new google.maps.LatLng(lat + rectangleHeight, lng);
+            const bottomRight = new google.maps.LatLng(lat + rectangleHeight, lng + rectangleWidth);
+
+            // Rotate all corners
+            const rotatedTopLeft = rotatePoint(topLeft, center, cosAngle, sinAngle);
+            const rotatedTopRight = rotatePoint(topRight, center, cosAngle, sinAngle);
+            const rotatedBottomLeft = rotatePoint(bottomLeft, center, cosAngle, sinAngle);
+            const rotatedBottomRight = rotatePoint(bottomRight, center, cosAngle, sinAngle);
+
+            // Check if all corners are inside the polygon
+            const allInsidePolygon =
+                google.maps.geometry.poly.containsLocation(rotatedTopLeft, polygon) &&
+                google.maps.geometry.poly.containsLocation(rotatedTopRight, polygon) &&
+                google.maps.geometry.poly.containsLocation(rotatedBottomLeft, polygon) &&
+                google.maps.geometry.poly.containsLocation(rotatedBottomRight, polygon);
+
+            if (allInsidePolygon) {
+                // Create a polygon to represent the rotated rectangle
+                const rectanglePolygon = new google.maps.Polygon({
+                    paths: [
+                        rotatedTopLeft,
+                        rotatedTopRight,
+                        rotatedBottomRight,
+                        rotatedBottomLeft,
+                        rotatedTopLeft, // Close the loop
+                    ],
+                    map: map,
+                    fillColor: "#0000FF",
+                    fillOpacity: 0.6,
+                    strokeColor: "#0000FF",
+                    strokeOpacity: 1,
+                    strokeWeight: 1,
+                });
+
+                rectangles.push(rectanglePolygon); // Store the rectangle
             }
         }
+    }
+}
+
+
+
 
         // Clear all rectangles
         function clearRectangles() {
