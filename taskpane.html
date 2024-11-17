@@ -4,9 +4,10 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Google Maps with Rotated Panels</title>
+    <title>Google Maps with DXF Export</title>
     <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places,drawing,geometry"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dxf-writer@4.2.0/dist/dxf-writer.min.js"></script>
     <style>
         #map {
             height: 100%;
@@ -52,6 +53,9 @@
         .clear-rectangles-button {
             background-image: url('https://img.icons8.com/fluency/48/000000/delete-forever.png');
         }
+        .export-button {
+            background-image: url('https://img.icons8.com/fluency/48/000000/export.png');
+        }
         #search-bar {
             position: absolute;
             top: 10px;
@@ -96,6 +100,7 @@
         <button id="clear-button" class="button clear-button" title="Clear Polygon"></button>
         <button id="fill-button" class="button fill-button" title="Fill with Rectangles"></button>
         <button id="clear-rectangles-button" class="button clear-rectangles-button" title="Clear Rectangles"></button>
+        <button id="export-button" class="button export-button" title="Export to DXF"></button>
     </div>
     <div id="info-bar">
         <p id="panel-count">Number of Panels: 0</p>
@@ -135,10 +140,31 @@
             document.getElementById("clear-button").addEventListener("click", clearPolygon);
             document.getElementById("fill-button").addEventListener("click", fillWithRectangles);
             document.getElementById("clear-rectangles-button").addEventListener("click", clearRectangles);
+            document.getElementById("export-button").addEventListener("click", exportToDXF);
 
             google.maps.event.addListener(drawingManager, 'polygoncomplete', (poly) => {
                 polygon = poly;
                 drawingManager.setDrawingMode(null);
+            });
+
+            const input = document.getElementById("search-input");
+            const searchBox = new google.maps.places.SearchBox(input);
+
+            searchBox.addListener("places_changed", () => {
+                const places = searchBox.getPlaces();
+                if (places.length === 0) return;
+
+                if (marker) marker.setMap(null);
+
+                const place = places[0];
+                if (place.geometry) {
+                    map.panTo(place.geometry.location);
+                    map.setZoom(18);
+                    marker = new google.maps.Marker({
+                        map,
+                        position: place.geometry.location,
+                    });
+                }
             });
         }
 
@@ -254,6 +280,57 @@
             rectangles.forEach((rect) => rect.setMap(null));
             rectangles = [];
             updateInfo(0); // Reset panel count and kWp
+        }
+
+        function exportToDXF() {
+            if (typeof DxfWriter === "undefined") {
+                alert("DXF Export unavailable. Please check the library inclusion.");
+                return;
+            }
+
+            if (!polygon && rectangles.length === 0) {
+                alert("Nothing to export!");
+                return;
+            }
+
+            try {
+                const dxf = new DxfWriter();
+                dxf.addLayer('0', DxfWriter.ACI.WHITE, 'CONTINUOUS');
+                dxf.setActiveLayer('0');
+
+                // Export Polygon
+                if (polygon) {
+                    const path = polygon.getPath();
+                    const coords = [];
+                    path.forEach((point) => {
+                        coords.push([point.lng(), point.lat()]);
+                    });
+                    coords.push(coords[0]); // Close the polygon
+                    dxf.addPolyline(coords);
+                }
+
+                // Export Rectangles
+                rectangles.forEach((rect) => {
+                    const path = rect.getPath();
+                    const coords = [];
+                    path.forEach((point) => {
+                        coords.push([point.lng(), point.lat()]);
+                    });
+                    coords.push(coords[0]); // Close the rectangle
+                    dxf.addPolyline(coords);
+                });
+
+                const dxfData = dxf.toString();
+                const blob = new Blob([dxfData], { type: 'application/dxf' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'drawing.dxf';
+                link.click();
+            } catch (error) {
+                console.error("DXF Export Error:", error);
+                alert("Failed to export DXF.");
+            }
         }
 
         function updateInfo(panelCount) {
