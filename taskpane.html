@@ -1,348 +1,184 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Google Maps with DXF Export</title>
-    <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places,drawing,geometry"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dxf-writer@4.2.0/dist/dxf-writer.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battery Size Calculator</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
     <style>
-        #map {
-            height: 100%;
-            width: 100%;
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
         }
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-        #toolbar {
-            position: absolute;
-            top: 50%;
-            right: 10px;
-            transform: translateY(-50%);
-            display: flex;
-            flex-direction: column;
-            padding: 15px;
-            background-color: #f0f0f0;
-            border: 2px solid #ccc;
-            border-radius: 8px;
-            z-index: 5;
-        }
-        .button {
-            padding: 10px;
-            margin: 5px 0;
-            cursor: pointer;
-            border: none;
-            background: none;
-            background-size: 24px;
-            background-repeat: no-repeat;
-            background-position: center;
-        }
-        .pen-button {
-            background-image: url('https://img.icons8.com/fluency/48/000000/edit.png');
-        }
-        .clear-button {
-            background-image: url('https://img.icons8.com/fluency/48/000000/eraser.png');
-        }
-        .fill-button {
-            background-image: url('https://img.icons8.com/fluency/48/000000/plus.png');
-        }
-        .clear-rectangles-button {
-            background-image: url('https://img.icons8.com/fluency/48/000000/delete-forever.png');
-        }
-        .export-button {
-            background-image: url('https://img.icons8.com/fluency/48/000000/export.png');
-        }
-        #search-bar {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
+
+        #app {
             width: 300px;
-            z-index: 5;
+        }
+
+        h1, h2 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .input-group {
+            margin-bottom: 10px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 5px;
+            font-size: 14px;
+        }
+
+        .button-group {
             display: flex;
-            flex-wrap: wrap;
             justify-content: space-between;
+            margin-bottom: 20px;
         }
-        #search-bar input {
-            width: 48%;
-            margin: 5px 0;
-            padding: 8px;
+
+        button {
+            padding: 10px 15px;
             font-size: 14px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
+            cursor: pointer;
         }
-        #info-bar {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background-color: rgba(255, 255, 255, 0.9);
-            border: 1px solid #ccc;
-            border-radius: 8px;
+
+        #summaryPanel {
+            background-color: #f4f4f4;
             padding: 10px;
-            font-size: 14px;
-            z-index: 5;
+            border-radius: 5px;
         }
     </style>
 </head>
 <body>
-    <div id="search-bar">
-        <input id="search-input" type="text" placeholder="Search location or coordinates">
-        <input id="angle-input" type="number" placeholder="Angle (degrees)" value="0" title="Specify the angle of alignment">
-        <input id="row-space-input" type="number" placeholder="Row Space (meters)" value="1" title="Row spacing">
-        <input id="column-space-input" type="number" placeholder="Column Space (meters)" value="0.02" title="Column spacing">
+    <div id="app">
+        <h1>Battery Size Calculator</h1>
+        <div class="input-group">
+            <label for="solarCapacity">Solar Capacity (kW):</label>
+            <input type="number" id="solarCapacity" placeholder="Enter solar capacity">
+        </div>
+        <div class="input-group">
+            <label for="batterySize">Battery Size (kW):</label>
+            <input type="number" id="batterySize" placeholder="Enter battery size">
+        </div>
+        <div class="input-group">
+            <label for="batteryCapacity">Battery Capacity (kWh):</label>
+            <input type="number" id="batteryCapacity" placeholder="Enter battery capacity">
+        </div>
+        <div class="input-group">
+            <label for="dod">Depth of Discharge (DOD %):</label>
+            <input type="number" id="dod" placeholder="Enter DOD percentage">
+        </div>
+        <div class="input-group">
+            <label for="rte">Battery RTE (%):</label>
+            <input type="number" id="rte" placeholder="Enter RTE percentage">
+        </div>
+        <div class="button-group">
+            <button id="calculateButton">Calculate</button>
+            <button id="resetButton">Reset</button>
+        </div>
+        <div id="summaryPanel">
+            <h2>Summary</h2>
+            <p id="powerWasted">Power wasted: <span>0</span> kW</p>
+            <p id="totalOutput">Total system output: <span>0</span> kW</p>
+        </div>
     </div>
-    <div id="toolbar">
-        <button id="pen-button" class="button pen-button" title="Draw Polygon"></button>
-        <button id="clear-button" class="button clear-button" title="Clear Polygon"></button>
-        <button id="fill-button" class="button fill-button" title="Fill with Rectangles"></button>
-        <button id="clear-rectangles-button" class="button clear-rectangles-button" title="Clear Rectangles"></button>
-        <button id="export-button" class="button export-button" title="Export to DXF"></button>
-    </div>
-    <div id="info-bar">
-        <p id="panel-count">Number of Panels: 0</p>
-        <p id="kwp-value">Total kWp: 0.00</p>
-    </div>
-    <div id="map"></div>
-
     <script>
-        let map;
-        let drawingManager;
-        let polygon;
-        let marker = null;
-        let rectangles = []; // To store the rectangles drawn inside the polygon
+        Office.onReady(() => {
+            document.getElementById('calculateButton').addEventListener('click', calculateBatteryUsage);
+            document.getElementById('resetButton').addEventListener('click', resetInputs);
+        });
 
-        function initMap() {
-            const centerLocation = { lat: 23.5859, lng: 58.4059 };
-            map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 18,
-                center: centerLocation,
-                mapTypeId: google.maps.MapTypeId.SATELLITE,
-            });
+        async function calculateBatteryUsage() {
+            const solarCapacity = parseFloat(document.getElementById('solarCapacity').value);
+            const batterySize = parseFloat(document.getElementById('batterySize').value);
+            const batteryCapacity = parseFloat(document.getElementById('batteryCapacity').value);
+            const dod = parseFloat(document.getElementById('dod').value) / 100;
+            const rte = parseFloat(document.getElementById('rte').value) / 100;
 
-            drawingManager = new google.maps.drawing.DrawingManager({
-                drawingControl: false,
-                polygonOptions: {
-                    fillColor: '#FF0000',
-                    fillOpacity: 0.4,
-                    strokeColor: '#FF0000',
-                    strokeWeight: 2,
-                    clickable: false,
-                    editable: true,
-                }
-            });
-            drawingManager.setMap(map);
+            const actualBatteryCapacity = batteryCapacity * dod * rte;
 
-            document.getElementById("pen-button").addEventListener("click", toggleDrawing);
-            document.getElementById("clear-button").addEventListener("click", clearPolygon);
-            document.getElementById("fill-button").addEventListener("click", fillWithRectangles);
-            document.getElementById("clear-rectangles-button").addEventListener("click", clearRectangles);
-            document.getElementById("export-button").addEventListener("click", exportToDXF);
+            await Excel.run(async (context) => {
+                const sheet = context.workbook.worksheets.getActiveWorksheet();
+                const loadRange = sheet.getRange("B2:B8761");
+                const solarRange = sheet.getRange("C2:C8761");
 
-            google.maps.event.addListener(drawingManager, 'polygoncomplete', (poly) => {
-                polygon = poly;
-                drawingManager.setDrawingMode(null);
-            });
+                loadRange.load("values");
+                solarRange.load("values");
+                await context.sync();
 
-            const input = document.getElementById("search-input");
-            const searchBox = new google.maps.places.SearchBox(input);
+                const adjustedSolarProduction = solarRange.values.map(value => value[0] * solarCapacity);
+                let batterySOC = 0;
+                let wastedPower = 0;
+                let totalSystemOutput = 0;
 
-            searchBox.addListener("places_changed", () => {
-                const places = searchBox.getPlaces();
-                if (places.length === 0) return;
+                const batteryActivity = [];
+                const batterySOCValues = [];
+                const wastedPowerValues = [];
+                const totalOutputValues = [];
 
-                if (marker) marker.setMap(null);
+                for (let i = 0; i < loadRange.values.length; i++) {
+                    const load = loadRange.values[i][0];
+                    const solar = adjustedSolarProduction[i];
+                    let batteryUsed = 0;
+                    let wasted = 0;
 
-                const place = places[0];
-                if (place.geometry) {
-                    map.panTo(place.geometry.location);
-                    map.setZoom(18);
-                    marker = new google.maps.Marker({
-                        map,
-                        position: place.geometry.location,
-                    });
-                }
-            });
-        }
-
-        function toggleDrawing() {
-            drawingManager.setDrawingMode(
-                drawingManager.drawingMode ? null : google.maps.drawing.OverlayType.POLYGON
-            );
-        }
-
-        function clearPolygon() {
-            if (polygon) {
-                polygon.setMap(null);
-                polygon = null;
-            }
-            clearRectangles();
-            updateInfo(0); // Reset panel count and kWp
-        }
-
-        function fillWithRectangles() {
-            if (!polygon) {
-                alert("Please draw a polygon first!");
-                return;
-            }
-
-            const angle = parseFloat(document.getElementById("angle-input").value) || 0;
-            const rowSpace = parseFloat(document.getElementById("row-space-input").value) || 1;
-            const columnSpace = parseFloat(document.getElementById("column-space-input").value) || 0.02;
-
-            const path = polygon.getPath();
-            const bounds = new google.maps.LatLngBounds();
-            path.forEach((latLng) => bounds.extend(latLng));
-
-            const center = bounds.getCenter();
-            const cosAngle = Math.cos((angle * Math.PI) / 180);
-            const sinAngle = Math.sin((angle * Math.PI) / 180);
-
-            clearRectangles(); // Clear previous rectangles
-
-            const rectangleWidth = 0.00001982; // Approx 2.2m in lat degrees
-            const rectangleHeight = 0.00000991; // Approx 1.1m in lng degrees
-            const rowSpaceDegrees = rowSpace * 0.00000991;
-            const columnSpaceDegrees = columnSpace * 0.00001982;
-
-            let panelCount = 0;
-
-            const rotatedBounds = getRotatedBounds(bounds, center, cosAngle, sinAngle);
-
-            for (
-                let lat = rotatedBounds.south;
-                lat < rotatedBounds.north;
-                lat += rectangleHeight + rowSpaceDegrees
-            ) {
-                for (
-                    let lng = rotatedBounds.west;
-                    lng < rotatedBounds.east;
-                    lng += rectangleWidth + columnSpaceDegrees
-                ) {
-                    const corners = [
-                        new google.maps.LatLng(lat, lng),
-                        new google.maps.LatLng(lat, lng + rectangleWidth),
-                        new google.maps.LatLng(lat + rectangleHeight, lng + rectangleWidth),
-                        new google.maps.LatLng(lat + rectangleHeight, lng),
-                    ].map((corner) => rotatePoint(corner, center, cosAngle, sinAngle));
-
-                    if (corners.every((corner) => google.maps.geometry.poly.containsLocation(corner, polygon))) {
-                        const rect = new google.maps.Polygon({
-                            paths: [...corners, corners[0]], // Close the rectangle loop
-                            map: map,
-                            fillColor: "#0000FF",
-                            fillOpacity: 0.6,
-                            strokeColor: "#0000FF",
-                            strokeWeight: 1,
-                        });
-                        rectangles.push(rect);
-                        panelCount++;
+                    if (solar > load) {
+                        const excessPower = solar - load;
+                        const chargePower = Math.min(excessPower, batterySize);
+                        const chargeEnergy = chargePower * rte;
+                        if (batterySOC + chargeEnergy <= actualBatteryCapacity) {
+                            batterySOC += chargeEnergy;
+                            batteryUsed = -chargePower;
+                        } else {
+                            wasted = excessPower - chargePower;
+                        }
+                    } else {
+                        const deficitPower = load - solar;
+                        const dischargePower = Math.min(deficitPower, batterySize);
+                        if (batterySOC - dischargePower >= 0) {
+                            batterySOC -= dischargePower;
+                            batteryUsed = dischargePower;
+                        } else {
+                            wasted = deficitPower - dischargePower;
+                        }
                     }
-                }
-            }
 
-            updateInfo(panelCount);
-        }
-
-        function getRotatedBounds(bounds, center, cosAngle, sinAngle) {
-            const corners = [
-                bounds.getSouthWest(),
-                bounds.getNorthEast(),
-                new google.maps.LatLng(bounds.getSouthWest().lat(), bounds.getNorthEast().lng()),
-                new google.maps.LatLng(bounds.getNorthEast().lat(), bounds.getSouthWest().lng()),
-            ];
-
-            const rotatedCorners = corners.map((corner) =>
-                rotatePoint(corner, center, cosAngle, sinAngle)
-            );
-
-            return {
-                north: Math.max(...rotatedCorners.map((p) => p.lat())),
-                south: Math.min(...rotatedCorners.map((p) => p.lat())),
-                east: Math.max(...rotatedCorners.map((p) => p.lng())),
-                west: Math.min(...rotatedCorners.map((p) => p.lng())),
-            };
-        }
-
-        function rotatePoint(point, center, cosAngle, sinAngle) {
-            const latDiff = point.lat() - center.lat();
-            const lngDiff = point.lng() - center.lng();
-            return new google.maps.LatLng(
-                center.lat() + latDiff * cosAngle - lngDiff * sinAngle,
-                center.lng() + latDiff * sinAngle + lngDiff * cosAngle
-            );
-        }
-
-        function clearRectangles() {
-            rectangles.forEach((rect) => rect.setMap(null));
-            rectangles = [];
-            updateInfo(0); // Reset panel count and kWp
-        }
-
-        function exportToDXF() {
-            if (typeof DxfWriter === "undefined") {
-                alert("DXF Export unavailable. Please check the library inclusion.");
-                return;
-            }
-
-            if (!polygon && rectangles.length === 0) {
-                alert("Nothing to export!");
-                return;
-            }
-
-            try {
-                const dxf = new DxfWriter();
-                dxf.addLayer('0', DxfWriter.ACI.WHITE, 'CONTINUOUS');
-                dxf.setActiveLayer('0');
-
-                // Export Polygon
-                if (polygon) {
-                    const path = polygon.getPath();
-                    const coords = [];
-                    path.forEach((point) => {
-                        coords.push([point.lng(), point.lat()]);
-                    });
-                    coords.push(coords[0]); // Close the polygon
-                    dxf.addPolyline(coords);
+                    wastedPower += wasted;
+                    totalSystemOutput += (solar + batteryUsed);
+                    batteryActivity.push(batteryUsed);
+                    batterySOCValues.push(batterySOC);
+                    wastedPowerValues.push(wasted);
+                    totalOutputValues.push(solar + batteryUsed);
                 }
 
-                // Export Rectangles
-                rectangles.forEach((rect) => {
-                    const path = rect.getPath();
-                    const coords = [];
-                    path.forEach((point) => {
-                        coords.push([point.lng(), point.lat()]);
-                    });
-                    coords.push(coords[0]); // Close the rectangle
-                    dxf.addPolyline(coords);
-                });
+                sheet.getRange("D2:D8761").values = adjustedSolarProduction.map(v => [v]);
+                sheet.getRange("E2:E8761").values = batteryActivity.map(v => [v]);
+                sheet.getRange("F2:F8761").values = batterySOCValues.map(v => [v]);
+                sheet.getRange("G2:G8761").values = wastedPowerValues.map(v => [v]);
+                sheet.getRange("H2:H8761").values = totalOutputValues.map(v => [v]);
 
-                const dxfData = dxf.toString();
-                const blob = new Blob([dxfData], { type: 'application/dxf' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = 'drawing.dxf';
-                link.click();
-            } catch (error) {
-                console.error("DXF Export Error:", error);
-                alert("Failed to export DXF.");
-            }
+                await context.sync();
+
+                document.getElementById('powerWasted').querySelector('span').textContent = wastedPower.toFixed(2);
+                document.getElementById('totalOutput').querySelector('span').textContent = totalSystemOutput.toFixed(2);
+            });
         }
 
-        function updateInfo(panelCount) {
-            const panelCountElement = document.getElementById("panel-count");
-            const kwpElement = document.getElementById("kwp-value");
-            const totalKwp = (panelCount * 0.59).toFixed(2);
-
-            panelCountElement.textContent = `Number of Panels: ${panelCount}`;
-            kwpElement.textContent = `Total kWp: ${totalKwp}`;
+        function resetInputs() {
+            document.getElementById('solarCapacity').value = '';
+            document.getElementById('batterySize').value = '';
+            document.getElementById('batteryCapacity').value = '';
+            document.getElementById('dod').value = '';
+            document.getElementById('rte').value = '';
+            document.getElementById('powerWasted').querySelector('span').textContent = '0';
+            document.getElementById('totalOutput').querySelector('span').textContent = '0';
         }
-
-        Office.onReady(initMap);
     </script>
 </body>
 </html>
