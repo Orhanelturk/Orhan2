@@ -6,52 +6,117 @@
     <title>Battery Size Calculator</title>
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
     <style>
+        /* General Reset */
         body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            background-color: #f7f9fc;
+            color: #333;
         }
 
+        /* Main container */
         #app {
-            width: 300px;
+            padding: 20px;
+            max-width: 400px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
-        h1, h2 {
-            font-size: 18px;
-            margin-bottom: 10px;
+        h1 {
+            font-size: 22px;
+            color: #0078d4;
+            text-align: center;
+            margin-bottom: 20px;
         }
 
         .input-group {
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
         .input-group label {
-            display: block;
             font-size: 14px;
+            font-weight: bold;
+            color: #555;
+            display: block;
             margin-bottom: 5px;
         }
 
         .input-group input {
             width: 100%;
-            padding: 5px;
+            padding: 10px;
             font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus {
+            border-color: #0078d4;
         }
 
         .button-group {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-top: 20px;
         }
 
         button {
-            padding: 10px 15px;
+            padding: 12px 20px;
             font-size: 14px;
+            border: none;
+            border-radius: 5px;
             cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        #calculateButton {
+            background-color: #0078d4;
+            color: #fff;
+        }
+
+        #calculateButton:hover {
+            background-color: #005a9e;
+        }
+
+        #resetButton {
+            background-color: #e1e1e1;
+            color: #333;
+        }
+
+        #resetButton:hover {
+            background-color: #c6c6c6;
         }
 
         #summaryPanel {
-            background-color: #f4f4f4;
-            padding: 10px;
-            border-radius: 5px;
+            background-color: #f1f5f9;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        #summaryPanel h2 {
+            font-size: 18px;
+            color: #0078d4;
+            margin-bottom: 10px;
+        }
+
+        #summaryPanel p {
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        #summaryPanel p span {
+            font-weight: bold;
+            color: #333;
         }
     </style>
 </head>
@@ -84,8 +149,8 @@
         </div>
         <div id="summaryPanel">
             <h2>Summary</h2>
-            <p id="powerWasted">Power wasted: <span>0</span> kW</p>
-            <p id="totalOutput">Total system output: <span>0</span> kW</p>
+            <p>Power wasted: <span id="powerWasted">0</span> kW</p>
+            <p>Total system output: <span id="totalOutput">0</span> kW</p>
         </div>
     </div>
     <script>
@@ -165,8 +230,8 @@
 
                 await context.sync();
 
-                document.getElementById('powerWasted').querySelector('span').textContent = wastedPower.toFixed(2);
-                document.getElementById('totalOutput').querySelector('span').textContent = totalSystemOutput.toFixed(2);
+                document.getElementById('powerWasted').textContent = wastedPower.toFixed(2);
+                document.getElementById('totalOutput').textContent = totalSystemOutput.toFixed(2);
             });
         }
 
@@ -176,8 +241,8 @@
             document.getElementById('batteryCapacity').value = '';
             document.getElementById('dod').value = '';
             document.getElementById('rte').value = '';
-            document.getElementById('powerWasted').querySelector('span').textContent = '0';
-            document.getElementById('totalOutput').querySelector('span').textContent = '0';
+            document.getElementById('powerWasted').textContent = '0';
+            document.getElementById('totalOutput').textContent = '0';
         }
     </script>
 </body>
