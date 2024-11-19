@@ -23,65 +23,37 @@
     <Hosts>
       <Host xsi:type="Workbook">
         <DesktopFormFactor>
+          <GetStarted>
+            <Title resid="GetStarted.Title"/>
+            <Description resid="GetStarted.Description"/>
+            <LearnMoreUrl resid="GetStarted.LearnMoreUrl"/>
+          </GetStarted>
           <FunctionFile resid="Commands.Url"/>
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
-            <OfficeTab id="CustomTab" label="Solar Add-In">
-              <!-- Group 1: Project Info -->
-              <Group id="Group1_ProjectInfo" label="Project Info">
-                <Control xsi:type="Button" id="InputSheet" label="Input Sheet" icon="icon-input-sheet.png" action="ShowInputSheet" size="Small"/>
-                <Control xsi:type="Button" id="Loads" label="Loads" icon="icon-loads.png" action="ShowLoads" size="Small"/>
-                <Control xsi:type="Button" id="ProjectLocation" label="Project Location" icon="icon-location.png" action="ShowProjectLocation" size="Small"/>
-                <Control xsi:type="Button" id="Tariffs" label="Tariffs" icon="icon-tariffs.png" action="ShowTariffs" size="Small"/>
-              </Group>
-
-              <!-- Group 2: Solar Resource Data -->
-              <Group id="Group2_SolarResourceData" label="Solar Resource Data">
-                <Control xsi:type="Button" id="ImportWeatherData" label="Import Hourly Weather Data" icon="icon-weather.png" action="ImportWeatherData" size="Small"/>
-                <Control xsi:type="Button" id="GetPVGIS" label="Get From PVGIS" icon="icon-pvgis.png" action="GetFromPVGIS" size="Large"/>
-              </Group>
-
-              <!-- Group 3: Design -->
-              <Group id="Group3_Design" label="Design">
-                <Control xsi:type="Button" id="SolarLayout" label="Solar Layout" icon="icon-solar-layout.png" action="ShowSolarLayout"/>
-                <Control xsi:type="Button" id="ConsumptionVsProduction" label="Consumption Vs Production" icon="icon-consumption-production.png" action="ShowConsumptionVsProduction"/>
-                <Control xsi:type="Button" id="ElectricalDesign" label="Electrical Design" icon="icon-electrical-design.png" action="ShowElectricalDesign"/>
-              </Group>
-
-              <!-- Group 4: Simulation -->
-              <Group id="Group4_Simulation" label="Simulation">
-                <Control xsi:type="Button" id="Simulation" label="Simulation" icon="icon-simulation.png" action="RunSimulation"/>
-              </Group>
-
-              <!-- Group 5: Project Costs -->
-              <Group id="Group5_ProjectCosts" label="Project Costs">
-                <Control xsi:type="Button" id="CAPEX" label="CAPEX" icon="icon-capex.png" action="ShowCAPEX"/>
-                <Control xsi:type="Button" id="OPEX" label="OPEX" icon="icon-opex.png" action="ShowOPEX"/>
-              </Group>
-
-              <!-- Group 6: Financial Model -->
-              <Group id="Group6_FinancialModel" label="Financial Model">
-                <Control xsi:type="Button" id="ModelInputs" label="Model Inputs" icon="icon-model-inputs.png" action="ShowModelInputs" size="Small"/>
-                <Control xsi:type="Button" id="FinancialResults" label="Financial Results" icon="icon-financial-results.png" action="ShowFinancialResults"/>
-              </Group>
-
-              <!-- Group 7: Optimization -->
-              <Group id="Group7_Optimization" label="Optimization">
-                <Control xsi:type="Button" id="CompareLands" label="Compare Different Lands" icon="icon-lands.png" action="CompareLands"/>
-                <Control xsi:type="Button" id="CompareComponents" label="Compare Different Components" icon="icon-components.png" action="CompareComponents"/>
-                <Control xsi:type="Button" id="CompareCountries" label="Compare Countries" icon="icon-countries.png" action="CompareCountries"/>
-                <Control xsi:type="Button" id="OptimizeSolution" label="Optimize Solution" icon="icon-optimize.png" action="OptimizeSolution"/>
-              </Group>
-
-              <!-- Group 8: Outputs -->
-              <Group id="Group8_Outputs" label="Outputs">
-                <Control xsi:type="Button" id="FinalReport" label="Final Report" icon="icon-final-report.png" action="ShowFinalReport" size="Large"/>
-                <Control xsi:type="Button" id="ExportPDF" label="Export Report PDF" icon="icon-export-pdf.png" action="ExportPDF" size="Small"/>
-                <Control xsi:type="Button" id="ExportWord" label="Export Report Word" icon="icon-export-word.png" action="ExportWord" size="Small"/>
-                <Control xsi:type="Button" id="ExportLayoutPDF" label="Export Layout PDF" icon="icon-export-layout-pdf.png" action="ExportLayoutPDF" size="Small"/>
-                <Control xsi:type="Button" id="ExportLayoutDXF" label="Export Layout DXF" icon="icon-export-layout-dxf.png" action="ExportLayoutDXF" size="Small"/>
-                <Control xsi:type="Button" id="ExportLayoutKMZ" label="Export Layout KMZ" icon="icon-export-layout-kmz.png" action="ExportLayoutKMZ" size="Small"/>
-                <Control xsi:type="Button" id="ExportSLDPDF" label="Export SLD PDF" icon="icon-export-sld-pdf.png" action="ExportSLDPDF" size="Small"/>
-                <Control xsi:type="Button" id="ExportSLDDXF" label="Export SLD DXF" icon="icon-export-sld-dxf.png" action="ExportSLDDXF" size="Small"/>
+            <OfficeTab id="TabHome">
+              <Group id="CommandsGroup">
+                <Label resid="CommandsGroup.Label"/>
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16x16"/>
+                  <bt:Image size="32" resid="Icon.32x32"/>
+                  <bt:Image size="80" resid="Icon.80x80"/>
+                </Icon>
+                <Control xsi:type="Button" id="TaskpaneButton">
+                  <Label resid="TaskpaneButton.Label"/>
+                  <Supertip>
+                    <Title resid="TaskpaneButton.Label"/>
+                    <Description resid="TaskpaneButton.Tooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16"/>
+                    <bt:Image size="32" resid="Icon.32x32"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>ButtonId1</TaskpaneId>
+                    <SourceLocation resid="Taskpane.Url"/>
+                  </Action>
+                </Control>
               </Group>
             </OfficeTab>
           </ExtensionPoint>
@@ -95,9 +67,19 @@
         <bt:Image id="Icon.80x80" DefaultValue="https://orhanelturk.github.io/Orhan2/assets/icon-80.png"/>
       </bt:Images>
       <bt:Urls>
+        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://go.microsoft.com/fwlink/?LinkId=276812"/>
         <bt:Url id="Commands.Url" DefaultValue="https://orhanelturk.github.io/Orhan2/commands.html"/>
         <bt:Url id="Taskpane.Url" DefaultValue="https://orhanelturk.github.io/Orhan2/taskpane.html"/>
       </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GetStarted.Title" DefaultValue="Get started with your sample add-in!"/>
+        <bt:String id="CommandsGroup.Label" DefaultValue="Commands Group"/>
+        <bt:String id="TaskpaneButton.Label" DefaultValue="Show Task Pane"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="GetStarted.Description" DefaultValue="Your sample add-in loaded successfully. Go to the HOME tab and click the 'Show Task Pane' button to get started."/>
+        <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Click to Show a Taskpane"/>
+      </bt:LongStrings>
     </Resources>
   </VersionOverrides>
 </OfficeApp>
