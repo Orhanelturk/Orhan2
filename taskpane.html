@@ -96,6 +96,7 @@
         <button id="clear-button" class="button clear-button" title="Clear Polygon"></button>
         <button id="fill-button" class="button fill-button" title="Fill with Rectangles"></button>
         <button id="clear-rectangles-button" class="button clear-rectangles-button" title="Clear Rectangles"></button>
+        <button id="color-panels-button" class="button" style="background-image: url('https://img.icons8.com/fluency/48/000000/paint-bucket.png');" title="Color Panels by Groups"></button>
     </div>
     <div id="info-bar">
         <p id="panel-count">Number of Panels: 0</p>
@@ -107,7 +108,6 @@
         let map;
         let drawingManager;
         let polygon;
-        let marker = null;
         let rectangles = []; // To store the rectangles drawn inside the polygon
 
         function initMap() {
@@ -135,6 +135,7 @@
             document.getElementById("clear-button").addEventListener("click", clearPolygon);
             document.getElementById("fill-button").addEventListener("click", fillWithRectangles);
             document.getElementById("clear-rectangles-button").addEventListener("click", clearRectangles);
+            document.getElementById("color-panels-button").addEventListener("click", colorPanelsByGroups);
 
             google.maps.event.addListener(drawingManager, 'polygoncomplete', (poly) => {
                 polygon = poly;
@@ -261,8 +262,25 @@
             const kwpElement = document.getElementById("kwp-value");
             const totalKwp = (panelCount * 0.59).toFixed(2);
 
-            panelCountElement.textContent = Number of Panels: ${panelCount};
-            kwpElement.textContent = Total kWp: ${totalKwp};
+            panelCountElement.textContent = `Number of Panels: ${panelCount}`;
+            kwpElement.textContent = `Total kWp: ${totalKwp}`;
+        }
+
+        function colorPanelsByGroups() {
+            if (rectangles.length === 0) {
+                alert("No panels to color. Please fill the polygon with rectangles first!");
+                return;
+            }
+
+            const colors = ["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF"]; // Add more colors as needed
+            rectangles.forEach((rect, index) => {
+                const groupIndex = Math.floor(index / 20);
+                const colorIndex = groupIndex % colors.length;
+                rect.setOptions({
+                    fillColor: colors[colorIndex],
+                    fillOpacity: 0.6,
+                });
+            });
         }
 
         Office.onReady(initMap);
