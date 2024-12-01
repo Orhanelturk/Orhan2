@@ -97,10 +97,13 @@
         <button id="fill-button" class="button fill-button" title="Fill with Rectangles"></button>
         <button id="clear-rectangles-button" class="button clear-rectangles-button" title="Clear Rectangles"></button>
         <button id="color-panels-button" class="button" style="background-image: url('https://img.icons8.com/fluency/48/000000/paint-bucket.png');" title="Color Panels by Groups"></button>
+        <button id="select-inverter-button" class="button" style="background-image: url('https://img.icons8.com/fluency/48/000000/map-pin.png');" title="Select Inverter"></button>
+        <button id="calculate-cables-button" class="button" style="background-image: url('https://img.icons8.com/fluency/48/000000/calculate.png');" title="Calculate Cables"></button>
     </div>
     <div id="info-bar">
         <p id="panel-count">Number of Panels: 0</p>
         <p id="kwp-value">Total kWp: 0.00</p>
+        <p id="total-cables">Total Cable Length: 0 meters</p>
     </div>
     <div id="map"></div>
 
@@ -109,6 +112,7 @@
         let drawingManager;
         let polygon;
         let rectangles = []; // To store the rectangles drawn inside the polygon
+        let inverterMarker = null;
 
         function initMap() {
             const centerLocation = { lat: 23.5859, lng: 58.4059 };
@@ -282,6 +286,69 @@
                 });
             });
         }
+        function selectInverterLocation() {
+        google.maps.event.addListenerOnce(map, "click", (event) => {
+            const location = event.latLng;
+            if (inverterMarker) {
+                inverterMarker.setMap(null);
+            }
+            inverterMarker = new google.maps.Marker({
+                position: location,
+                map: map,
+                title: "Inverter Location",
+                icon: {
+                    url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                },
+            });
+        });
+    }
+        // Function to calculate cable lengths
+        function calculateCables() {
+        if (!inverterMarker) {
+            alert("Please select an inverter location first!");
+            return;
+        }
+
+        if (rectangles.length === 0) {
+            alert("No panels to calculate cables for. Please fill the polygon with rectangles first!");
+            return;
+        }
+
+        const inverterLocation = inverterMarker.getPosition();
+        let totalCableLength = 0;
+
+        // Calculate cable length for each group of 20 panels
+        for (let i = 0; i < rectangles.length; i += 20) {
+            const groupCenter = calculateGroupCenter(rectangles.slice(i, i + 20));
+            totalCableLength += google.maps.geometry.spherical.computeDistanceBetween(
+                inverterLocation,
+                groupCenter
+            ) * 2; // Two cables per group
+        }
+
+        const totalCablesElement = document.getElementById("total-cables");
+        totalCablesElement.textContent = `Total Cable Length: ${totalCableLength.toFixed(2)} meters`;
+    }
+        // Calculate the center of a group of panels
+        function calculateGroupCenter(group) {
+        let latSum = 0;
+        let lngSum = 0;
+
+        group.forEach((rect) => {
+            const bounds = new google.maps.LatLngBounds();
+            rect.getPath().forEach((point) => bounds.extend(point));
+            const center = bounds.getCenter();
+            latSum += center.lat();
+            lngSum += center.lng();
+        });
+
+        const centerLat = latSum / group.length;
+        const centerLng = lngSum / group.length;
+
+        return new google.maps.LatLng(centerLat, centerLng);
+    }
+    document.getElementById("select-inverter-button").addEventListener("click", selectInverterLocation);
+    document.getElementById("calculate-cables-button").addEventListener("click", calculateCables);
 
         Office.onReady(initMap);
     </script>
